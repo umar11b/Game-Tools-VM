@@ -38,6 +38,8 @@
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.toolStripStatusLabel1 = new System.Windows.Forms.ToolStripStatusLabel();
+            this.SizeChanged += new System.EventHandler(this.FormEditor_SizeChanged);
+
 
             this.menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();

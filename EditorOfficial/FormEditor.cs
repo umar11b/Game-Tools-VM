@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Windows.Forms;
+using EditorOfficial.Helpers; // ✅ for InputState
 
 namespace EditorOfficial
 {
@@ -23,6 +24,10 @@ namespace EditorOfficial
                 _game = new GameEditor(handle);
                 _game.RunOneFrame();
 
+                // ✅ Hook WinForms input events to InputState
+                HookInputEvents();
+
+                // ✅ Run MonoGame frames when the app is idle
                 Application.Idle += GameLoop;
 
                 toolStripStatusLabel1.Text = "Game engine initialized.";
@@ -34,6 +39,13 @@ namespace EditorOfficial
             }
         }
 
+        // ✅ Handles resizing of the embedded render surface
+        private void FormEditor_SizeChanged(object sender, EventArgs e)
+        {
+            _game?.UpdateAspectRatio(splitContainer1.Panel2.Width, splitContainer1.Panel2.Height);
+        }
+
+        // ✅ Main MonoGame frame loop
         private void GameLoop(object sender, EventArgs e)
         {
             while (AppStillIdle)
@@ -92,6 +104,22 @@ namespace EditorOfficial
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Close();
+        }
+
+        // ✅ New: hook up WinForms input events to InputState helper
+        private void HookInputEvents()
+        {
+            var panel = splitContainer1.Panel2;
+
+            panel.MouseDown += (s, e) => InputState.OnMouseDown(e);
+            panel.MouseUp += (s, e) => InputState.OnMouseUp(e);
+            panel.MouseMove += (s, e) => InputState.OnMouseMove(e);
+            panel.KeyDown += (s, e) => InputState.OnKeyDown(e.KeyCode);
+            panel.KeyUp += (s, e) => InputState.OnKeyUp(e.KeyCode);
+
+            // ✅ Let panel capture focus for keyboard
+            panel.TabStop = true;
+            panel.Focus();
         }
     }
 

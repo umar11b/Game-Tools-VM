@@ -5,34 +5,50 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Content;
+using System.Text.Json.Serialization;
 
 namespace EditorOfficial
 {
     [Serializable]
     public class ModelEntity
     {
-        public Vector3 Position { get; set; }
-        public Vector3 Rotation { get; set; }
-        public Vector3 Scale { get; set; }
-
+        // === Serializable fields ===
         public string ModelName { get; set; }
+        public Vector3 Position { get; set; } = Vector3.Zero;
+        public Vector3 Rotation { get; set; } = Vector3.Zero;
+        public Vector3 Scale { get; set; } = Vector3.One;
 
-        [NonSerialized]
+        // === Non-serialized runtime model ===
+        [JsonIgnore]
         private Model _model;
+
+        public ModelEntity() { }
 
         public ModelEntity(string modelName)
         {
             ModelName = modelName;
-            Position = Vector3.Zero;
-            Rotation = Vector3.Zero;
-            Scale = Vector3.One;
         }
 
-        public void LoadContent(Microsoft.Xna.Framework.Content.ContentManager content)
+        // === Load 3D content ===
+        public void LoadContent(ContentManager content)
         {
-            _model = content.Load<Model>(ModelName);
+            try
+            {
+                _model = content.Load<Model>(ModelName);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show(
+                    $"Failed to load model '{ModelName}':\n{ex.Message}",
+                    "Model Load Error",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Warning
+                );
+            }
         }
 
+        // === Draw model ===
         public void Draw(GraphicsDevice device, BasicEffect effect, Matrix view, Matrix projection)
         {
             if (_model == null)
@@ -52,7 +68,6 @@ namespace EditorOfficial
                     meshEffect.Projection = projection;
                     meshEffect.EnableDefaultLighting();
                 }
-
                 mesh.Draw();
             }
         }

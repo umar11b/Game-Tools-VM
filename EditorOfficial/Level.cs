@@ -1,17 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Content;
+using System.Collections.Generic;
 
 namespace EditorOfficial
 {
     public class Level
     {
-        public string Name { get; private set; }
-        private List<ModelEntity> _entities = new List<ModelEntity>();
+        public string Name { get; set; }
+        public List<ModelEntity> Entities { get; set; } = new List<ModelEntity>();
+
+        public Level() { }
 
         public Level(string name)
         {
@@ -20,21 +19,19 @@ namespace EditorOfficial
 
         public void AddEntity(ModelEntity entity)
         {
-            _entities.Add(entity);
+            Entities.Add(entity);
+        }
+
+        public void LoadContent(ContentManager content)
+        {
+            foreach (var e in Entities)
+                e.LoadContent(content);
         }
 
         public void Draw(GraphicsDevice device, BasicEffect effect, Matrix view, Matrix projection)
         {
-            foreach (var entity in _entities)
-            {
-                entity.Draw(device, effect, view, projection);
-            }
-        }
-
-        public void LoadContent(Microsoft.Xna.Framework.Content.ContentManager content)
-        {
-            foreach (var entity in _entities)
-                entity.LoadContent(content);
+            foreach (var e in Entities)
+                e.Draw(device, effect, view, projection);
         }
     }
 }
