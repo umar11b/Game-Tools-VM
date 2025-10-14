@@ -7,39 +7,21 @@ using EditorOfficial.Helpers;
 
 namespace EditorOfficial
 {
-    /// <summary>
-    /// Core editor runtime – handles rendering, camera, and entity management.
-    /// </summary>
     public class GameEditor : Game
     {
-        private Model _testModel;
-
-        private static GameEditor _instance;
-        public static GameEditor Instance => _instance;
-
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
-
-        // Handle to WinForms panel
         private IntPtr _drawSurface;
-
-        // Scene
         private Camera _camera;
         private BasicEffect _effect;
-        private List<ModelEntity> _entities;
-
-        // Debug font
+        private List<ModelEntity> _entities = new();
+        private Model _sun, _planet, _moon;
         private SpriteFont _font;
-        private Vector2 _fontPos = new Vector2(10, 10);
+        private VertexPositionColor[] _axis;
 
-        // Axis visuals
-        private VertexPositionColor[] _axisLines;
-
-        public GameEditor(IntPtr drawSurface)
+        public GameEditor(IntPtr handle)
         {
-            _instance = this;
-            _drawSurface = drawSurface;
-
+            _drawSurface = handle;
             _graphics = new GraphicsDeviceManager(this);
             _graphics.PreparingDeviceSettings += (s, e) =>
             {
@@ -52,7 +34,7 @@ namespace EditorOfficial
 
         protected override void Initialize()
         {
-            _entities = new List<ModelEntity>();
+            _camera = new Camera(GraphicsDevice.Viewport.AspectRatio);
             base.Initialize();
         }
 
@@ -60,57 +42,62 @@ namespace EditorOfficial
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
 
-            // Load debug font (optional)
-            try { _font = Content.Load<SpriteFont>("Arial"); }
-            catch { _font = null; }
+            // Try loading a debug font if available
+            try
+            {
+                _font = Content.Load<SpriteFont>("Arial16");
+            }
+            catch
+            {
+                _font = null;
+            }
 
-            // Setup camera
-            _camera = new Camera(GraphicsDevice.Viewport.AspectRatio);
-
-            // Basic effect
             _effect = new BasicEffect(GraphicsDevice)
             {
                 VertexColorEnabled = true,
                 LightingEnabled = false
             };
 
-            // Axis lines
-            _axisLines = new VertexPositionColor[]
+            // Draw coordinate axis lines
+            _axis = new[]
             {
                 new VertexPositionColor(Vector3.Zero, Color.Red),
                 new VertexPositionColor(Vector3.UnitX * 100, Color.Red),
+
                 new VertexPositionColor(Vector3.Zero, Color.Green),
                 new VertexPositionColor(Vector3.UnitY * 100, Color.Green),
+
                 new VertexPositionColor(Vector3.Zero, Color.Blue),
                 new VertexPositionColor(Vector3.UnitZ * 100, Color.Blue)
             };
-            _testModel = Content.Load<Model>("Teapot");
 
+            // Load assets (safe load)
+            TryLoadModel("Sun", out _sun);
+            TryLoadModel("Planet", out _planet);
+            TryLoadModel("Moon", out _moon);
+        }
+
+        private void TryLoadModel(string assetName, out Model model)
+        {
+            try
+            {
+                model = Content.Load<Model>(assetName);
+                Console.WriteLine($"Loaded model: {assetName}");
+            }
+            catch
+            {
+                Console.WriteLine($"⚠️ Could not load model: {assetName}");
+                model = null;
+            }
         }
 
         protected override void Update(GameTime gameTime)
         {
-            // Exit on ESC
             if (Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
-            // === Handle input ===
-            InputController.Update();
-
-            // === Camera movement test (WASD) ===
-            if (InputController.KeyDown(Keys.W))
-                _camera.Position += new Vector3(0, 0, -2);
-            if (InputController.KeyDown(Keys.S))
-                _camera.Position += new Vector3(0, 0, 2);
-            if (InputController.KeyDown(Keys.A))
-                _camera.Position += new Vector3(-2, 0, 0);
-            if (InputController.KeyDown(Keys.D))
-                _camera.Position += new Vector3(2, 0, 0);
-
-            // === Update camera ===
             _camera.Update(gameTime);
 
-            // === Update all entities ===
             foreach (var e in _entities)
                 e.Update(gameTime);
 
@@ -119,50 +106,54 @@ namespace EditorOfficial
 
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.Black);
+            GraphicsDevice.Clear(new Color(135, 206, 250));
 
             _effect.View = _camera.View;
             _effect.Projection = _camera.Projection;
             _effect.World = Matrix.Identity;
 
-            // === Draw axes ===
+            // Draw XYZ axes
             foreach (var pass in _effect.CurrentTechnique.Passes)
             {
                 pass.Apply();
-                GraphicsDevice.DrawUserPrimitives(PrimitiveType.LineList, _axisLines, 0, 3);
-            }
-            if (_testModel != null)
-            {
-                Matrix world = Matrix.CreateScale(5f) * Matrix.CreateTranslation(Vector3.Zero);
-                foreach (var mesh in _testModel.Meshes)
-                {
-                    foreach (BasicEffect meshEffect in mesh.Effects)
-                    {
-                        meshEffect.World = world;
-                        meshEffect.View = _camera.View;
-                        meshEffect.Projection = _camera.Projection;
-                        meshEffect.EnableDefaultLighting();
-                    }
-                    mesh.Draw();
-                }
+                GraphicsDevice.DrawUserPrimitives(PrimitiveType.LineList, _axis, 0, 3);
             }
 
+            // Draw test models (Sun, Planet, Moon)
+            DrawModel(_sun, Matrix.CreateScale(50f));
+            DrawModel(_planet, Matrix.CreateTranslation(200, 0, 0));
+            DrawModel(_moon, Matrix.CreateScale(0.5f) * Matrix.CreateTranslation(250, 0, 0));
 
-            // === Draw models ===
-            foreach (var e in _entities)
-                e.Draw(GraphicsDevice, _camera);
-
-            // === Debug overlay ===
+            // Overlay debug text
             if (_font != null)
             {
                 _spriteBatch.Begin();
-                _spriteBatch.DrawString(_font, $"Camera Pos: {_camera.Position}", _fontPos, Color.White);
+                _spriteBatch.DrawString(_font, $"Camera: {_camera.Position}", new Vector2(10, 10), Color.White);
                 _spriteBatch.End();
             }
 
             base.Draw(gameTime);
         }
 
+        private void DrawModel(Model model, Matrix world)
+        {
+            if (model == null) return;
+
+            foreach (var mesh in model.Meshes)
+            {
+                foreach (BasicEffect e in mesh.Effects)
+                {
+                    e.World = world;
+                    e.View = _camera.View;
+                    e.Projection = _camera.Projection;
+                    e.EnableDefaultLighting();
+                    e.PreferPerPixelLighting = true;
+                }
+                mesh.Draw();
+            }
+        }
+
+        // === Added for FormEditor integration ===
         public void UpdateAspectRatio(int width, int height)
         {
             if (GraphicsDevice == null || height == 0)
@@ -175,8 +166,9 @@ namespace EditorOfficial
             _camera.UpdateAspectRatio(width / (float)height);
         }
 
-        // === Add methods for entities ===
-        public void AddEntity(ModelEntity e) => _entities.Add(e);
-        public void ResetScene() => _entities.Clear();
+        public void ResetScene()
+        {
+            _entities.Clear();
+        }
     }
 }

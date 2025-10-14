@@ -1,6 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Content;
 using System.Collections.Generic;
 
 namespace EditorOfficial
@@ -8,30 +7,22 @@ namespace EditorOfficial
     public class Level
     {
         public string Name { get; set; }
-        public List<ModelEntity> Entities { get; set; } = new List<ModelEntity>();
+        public List<ModelEntity> Entities { get; private set; } = new();
 
-        public Level() { }
+        public Level(string name) { Name = name; }
 
-        public Level(string name)
+        public void Add(ModelEntity e) => Entities.Add(e);
+
+        public void LoadContent(GraphicsDevice device) { }
+
+        public void Update(GameTime time)
         {
-            Name = name;
+            foreach (var e in Entities) e.Update(time);
         }
 
-        public void AddEntity(ModelEntity entity)
+        public void Draw(GraphicsDevice device, Camera cam)
         {
-            Entities.Add(entity);
-        }
-
-        public void LoadContent(ContentManager content)
-        {
-            foreach (var e in Entities)
-                e.LoadContent(content);
-        }
-
-        public void Draw(GraphicsDevice device, Camera camera)
-        {
-            foreach (var e in Entities)
-                e.Draw(device, camera);
+            foreach (var e in Entities) e.Draw(device, cam);
         }
     }
 }

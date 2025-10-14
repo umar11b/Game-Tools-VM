@@ -1,6 +1,6 @@
-﻿using EditorOfficial.Helpers;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using EditorOfficial.Helpers;
 using System;
 
 namespace EditorOfficial
@@ -11,83 +11,72 @@ namespace EditorOfficial
         public Vector3 Target { get; private set; }
         public Vector3 Up { get; private set; } = Vector3.Up;
 
-        private float _yaw;
-        private float _pitch;
+        private float _yaw, _pitch;
         private float _distance = 300f;
+        private float _aspect;
 
         public Matrix View { get; private set; }
         public Matrix Projection { get; private set; }
 
-        private const float RotationSpeed = 0.005f;
-        private const float PanSpeed = 0.5f;
-        private const float ZoomSpeed = 2f;
+        private const float RotateSpeed = 0.005f;
+        private const float PanSpeed = 1.0f;
+        private const float ZoomSpeed = 2.0f;
 
-        private float _aspectRatio;
-
-        public Camera(float aspectRatio)
+        public Camera(float aspect)
         {
-            _aspectRatio = aspectRatio;
+            _aspect = aspect;
             Reset();
         }
 
-        // 👇 This is the method you’re looking for:
         public void Update(GameTime gameTime)
         {
-            InputController.Update(); // poll input
+            InputController.Update();
 
-            // Rotate camera (Right Mouse)
+            // rotation
             if (InputController.RightPressed)
             {
-                _yaw -= InputController.MouseDelta.X * RotationSpeed;
-                _pitch -= InputController.MouseDelta.Y * RotationSpeed;
+                _yaw -= InputController.MouseDelta.X * RotateSpeed;
+                _pitch -= InputController.MouseDelta.Y * RotateSpeed;
                 _pitch = MathHelper.Clamp(_pitch, -MathHelper.PiOver2 + 0.1f, MathHelper.PiOver2 - 0.1f);
             }
 
-            // Zoom camera (Scroll wheel)
-            if (InputController.ScrollDelta != 0)
-            {
-                _distance -= InputController.ScrollDelta * ZoomSpeed * 0.01f;
-                _distance = MathHelper.Clamp(_distance, 50f, 2000f);
-            }
-
-            // Pan camera (Middle Mouse)
+            // pan (MMB)
             if (InputController.MiddlePressed)
             {
                 var right = Vector3.Transform(Vector3.Right, Matrix.CreateRotationY(_yaw));
                 var up = Vector3.Transform(Vector3.Up, Matrix.CreateRotationX(_pitch));
-                Vector3 pan = (-right * InputController.MouseDelta.X + up * InputController.MouseDelta.Y) * PanSpeed;
-                Target += pan;
+                Target -= right * InputController.MouseDelta.X * PanSpeed;
+                Target += up * InputController.MouseDelta.Y * PanSpeed;
             }
 
-            // Recalculate position
-            Matrix rotation = Matrix.CreateFromYawPitchRoll(_yaw, _pitch, 0f);
-            Vector3 offset = Vector3.Transform(Vector3.Backward, rotation) * _distance;
-            Position = Target + offset;
+            // zoom (wheel)
+            if (InputController.ScrollDelta != 0)
+            {
+                _distance -= InputController.ScrollDelta * ZoomSpeed * 0.01f;
+                _distance = MathHelper.Clamp(_distance, 50, 2000);
+            }
 
+            // keyboard move
+            if (InputController.KeyDown(Keys.W)) Target += Vector3.Forward * 2;
+            if (InputController.KeyDown(Keys.S)) Target += Vector3.Backward * 2;
+            if (InputController.KeyDown(Keys.A)) Target += Vector3.Left * 2;
+            if (InputController.KeyDown(Keys.D)) Target += Vector3.Right * 2;
+
+            var rotation = Matrix.CreateFromYawPitchRoll(_yaw, _pitch, 0);
+            var offset = Vector3.Transform(Vector3.Backward, rotation) * _distance;
+            Position = Target + offset;
             UpdateViewMatrix();
         }
 
-        private void UpdateViewMatrix()
-        {
-            View = Matrix.CreateLookAt(Position, Target, Up);
-        }
+        public void UpdateViewMatrix() => View = Matrix.CreateLookAt(Position, Target, Up);
+        public void UpdateProjectionMatrix() =>
+            Projection = Matrix.CreatePerspectiveFieldOfView(MathHelper.PiOver4, _aspect, 0.1f, 10000f);
 
-        public void UpdateProjectionMatrix()
-        {
-            Projection = Matrix.CreatePerspectiveFieldOfView(MathHelper.PiOver4, _aspectRatio, 0.1f, 5000f);
-        }
-
-        public void UpdateAspectRatio(float newAspectRatio)
-        {
-            _aspectRatio = newAspectRatio;
-            UpdateProjectionMatrix();
-        }
+        public void UpdateAspectRatio(float aspect) { _aspect = aspect; UpdateProjectionMatrix(); }
 
         public void Reset()
         {
-            _yaw = 0f;
-            _pitch = 0f;
-            _distance = 300f;
+            _yaw = 0; _pitch = 0; _distance = 400;
             Target = Vector3.Zero;
             UpdateProjectionMatrix();
         }
