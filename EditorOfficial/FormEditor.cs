@@ -24,11 +24,16 @@ namespace EditorOfficial
                 _game = new GameEditor(handle);
                 _game.RunOneFrame();
 
-                // ✅ Hook WinForms input events to InputState
                 HookInputEvents();
 
-                // ✅ Run MonoGame frames when the app is idle
                 Application.Idle += GameLoop;
+
+                // ✅ Force focus lock (ensures keyboard input stays active)
+                splitContainer1.Panel2.PreviewKeyDown += (s, ev) => ev.IsInputKey = true;
+                splitContainer1.Panel2.GotFocus += (s, ev) => toolStripStatusLabel1.Text = "Viewport active (WASD ready)";
+                splitContainer1.Panel2.MouseClick += (s, ev) => splitContainer1.Panel2.Focus();
+                splitContainer1.Panel2.LostFocus += (s, ev) => splitContainer1.Panel2.Focus();
+                splitContainer1.Panel2.Focus();
 
                 toolStripStatusLabel1.Text = "Game engine initialized.";
             }
@@ -38,6 +43,7 @@ namespace EditorOfficial
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
 
         // ✅ Handles resizing of the embedded render surface
         private void FormEditor_SizeChanged(object sender, EventArgs e)
@@ -83,7 +89,7 @@ namespace EditorOfficial
             };
             if (dialog.ShowDialog() == DialogResult.OK)
             {
-                _game?.SaveScene(dialog.FileName);
+                //_game?.SaveScene(dialog.FileName);
                 toolStripStatusLabel1.Text = $"Scene saved: {Path.GetFileName(dialog.FileName)}";
             }
         }
@@ -96,7 +102,7 @@ namespace EditorOfficial
             };
             if (dialog.ShowDialog() == DialogResult.OK)
             {
-                _game?.LoadScene(dialog.FileName);
+                //_game?.LoadScene(dialog.FileName);
                 toolStripStatusLabel1.Text = $"Loaded: {Path.GetFileName(dialog.FileName)}";
             }
         }
@@ -110,16 +116,9 @@ namespace EditorOfficial
         private void HookInputEvents()
         {
             var panel = splitContainer1.Panel2;
-
-            panel.MouseDown += (s, e) => InputState.OnMouseDown(e);
-            panel.MouseUp += (s, e) => InputState.OnMouseUp(e);
-            panel.MouseMove += (s, e) => InputState.OnMouseMove(e);
-            panel.KeyDown += (s, e) => InputState.OnKeyDown(e.KeyCode);
-            panel.KeyUp += (s, e) => InputState.OnKeyUp(e.KeyCode);
-
-            // ✅ Let panel capture focus for keyboard
             panel.TabStop = true;
             panel.Focus();
+            panel.PreviewKeyDown += (s, e) => e.IsInputKey = true; // ensures WASD are treated as input keys
         }
     }
 

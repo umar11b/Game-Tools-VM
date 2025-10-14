@@ -28,10 +28,10 @@ namespace EditorOfficial
                 e.LoadContent(content);
         }
 
-        public void Draw(GraphicsDevice device, BasicEffect effect, Matrix view, Matrix projection)
+        public void Draw(GraphicsDevice device, Camera camera)
         {
             foreach (var e in Entities)
-                e.Draw(device, effect, view, projection);
+                e.Draw(device, camera);
         }
     }
 }

@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Content;
@@ -18,6 +14,12 @@ namespace EditorOfficial
         public Vector3 Position { get; set; } = Vector3.Zero;
         public Vector3 Rotation { get; set; } = Vector3.Zero;
         public Vector3 Scale { get; set; } = Vector3.One;
+
+        // === Optional behavior values (we’ll use these for Sun/Planet/Moon later) ===
+        public float SelfRotateSpeed { get; set; } = 0f;   // rotation around own axis
+        public float OrbitSpeed { get; set; } = 0f;        // orbiting parent
+        public Vector3 OrbitCenter { get; set; } = Vector3.Zero;
+        public float OrbitRadius { get; set; } = 0f;
 
         // === Non-serialized runtime model ===
         [JsonIgnore]
@@ -48,8 +50,29 @@ namespace EditorOfficial
             }
         }
 
+        // === Update rotation/orbit logic ===
+        public void Update(GameTime gameTime)
+        {
+            // Rotate around own center
+            var rot = Rotation;
+            rot.Y += SelfRotateSpeed;
+            Rotation = rot;
+
+
+            // Orbit around parent (if applicable)
+            if (OrbitSpeed != 0 && OrbitRadius > 0)
+            {
+                float angle = (float)(gameTime.TotalGameTime.TotalSeconds * OrbitSpeed);
+                Position = new Vector3(
+                    OrbitCenter.X + (float)Math.Cos(angle) * OrbitRadius,
+                    OrbitCenter.Y,
+                    OrbitCenter.Z + (float)Math.Sin(angle) * OrbitRadius
+                );
+            }
+        }
+
         // === Draw model ===
-        public void Draw(GraphicsDevice device, BasicEffect effect, Matrix view, Matrix projection)
+        public void Draw(GraphicsDevice device, Camera camera)
         {
             if (_model == null)
                 return;
@@ -64,8 +87,8 @@ namespace EditorOfficial
                 foreach (BasicEffect meshEffect in mesh.Effects)
                 {
                     meshEffect.World = world;
-                    meshEffect.View = view;
-                    meshEffect.Projection = projection;
+                    meshEffect.View = camera.View;
+                    meshEffect.Projection = camera.Projection;
                     meshEffect.EnableDefaultLighting();
                 }
                 mesh.Draw();
