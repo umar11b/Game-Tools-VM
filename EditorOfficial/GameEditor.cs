@@ -3,53 +3,39 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
+using System.Windows.Forms; // For Timer fallback
 
 namespace EditorOfficial
 {
     public class GameEditor : Game
     {
-        GraphicsDeviceManager _graphics;
-        SpriteBatch _spriteBatch;
-        IntPtr _drawSurface;
-        Camera _camera;
-        BasicEffect _effect;
-        public List<ModelEntity> Entities = new();
-        public ModelEntity SelectedEntity;
-        public event Action<ModelEntity> OnEntitySelected;
-        public Level CurrentLevel { get; set; } = new Level("Untitled");
+        private GraphicsDeviceManager _graphics;
+        private SpriteBatch _spriteBatch;
+        private IntPtr _drawSurface;
+        private Camera _camera;
+        private BasicEffect _effect;
 
-
-        public void AddDefaultEntity()
-        {
-            try
-            {
-                var teapot = Content.Load<Model>("Teapot");
-                var entity = new ModelEntity(teapot);
-                Entities.Add(entity);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to load default entity: {ex.Message}");
-            }
-        }
-
-
+        // Logical level data
+        private Level _level = new Level("Untitled");
         public Level Level
         {
-            get
-            {
-                // Convert the GameEditor’s live entities into a Level object
-                var level = new Level("CurrentLevel");
-                level.Entities = Entities;
-                return level;
-            }
+            get => _level;
             set
             {
-                // Replace GameEditor’s active entities with the loaded Level
-                Entities = value?.Entities ?? new List<ModelEntity>();
+                _level = value ?? new Level("Untitled");
+                Entities = _level.Entities ?? new List<ModelEntity>();
+                ReloadLevelModels();
             }
         }
 
+        public List<ModelEntity> Entities
+        {
+            get => Level.Entities;
+            set => Level.Entities = value;
+        }
+
+        public ModelEntity SelectedEntity;
+        public event Action<ModelEntity> OnEntitySelected;
 
         public GameEditor(IntPtr handle)
         {
@@ -59,6 +45,7 @@ namespace EditorOfficial
             {
                 e.GraphicsDeviceInformation.PresentationParameters.DeviceWindowHandle = _drawSurface;
             };
+
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
         }
@@ -69,15 +56,17 @@ namespace EditorOfficial
             {
                 base.Initialize();
 
-                // Ensure GraphicsDevice is ready before loading content
                 if (GraphicsDevice != null)
                 {
                     LoadContent();
                 }
                 else
                 {
-                    System.Windows.Forms.Timer retryTimer = new System.Windows.Forms.Timer();
-                    retryTimer.Interval = 100; // check every 100ms
+                    // Fallback timer to wait for GraphicsDevice
+                    var retryTimer = new System.Windows.Forms.Timer
+                    {
+                        Interval = 100
+                    };
                     retryTimer.Tick += (s, e) =>
                     {
                         if (GraphicsDevice != null)
@@ -92,8 +81,6 @@ namespace EditorOfficial
             }
         }
 
-
-
         protected override void Initialize()
         {
             _camera = new Camera(GraphicsDevice?.Viewport.AspectRatio ?? 1f);
@@ -103,19 +90,63 @@ namespace EditorOfficial
         protected override void LoadContent()
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
-            _effect = new BasicEffect(GraphicsDevice) { VertexColorEnabled = true };
+            _effect = new BasicEffect(GraphicsDevice)
+            {
+                VertexColorEnabled = true,
+                LightingEnabled = false
+            };
 
-            var teapot = Content.Load<Model>("Teapot");
-            var entity = new ModelEntity(teapot);
-            Entities.Add(entity);
+            // If this is a brand-new level, try adding a default model
+            if (Entities.Count == 0)
+                TryAddDefaultEntity();
+
+            ReloadLevelModels();
+        }
+
+        private void TryAddDefaultEntity()
+        {
+            try
+            {
+                var model = Content.Load<Model>("Teapot");
+                Entities.Add(new ModelEntity(model));
+            }
+            catch
+            {
+                // If Teapot not found, scene will simply be empty
+            }
+        }
+
+        private void ReloadLevelModels()
+        {
+            if (Content == null)
+                return;
+
+            foreach (var entity in Entities)
+            {
+                if (entity.Model == null)
+                {
+                    try
+                    {
+                        // Future-proof: replace with entity.ModelPath when serialization supports it
+                        entity.Model = Content.Load<Model>("Teapot");
+                    }
+                    catch
+                    {
+                        // Ignore missing models gracefully
+                    }
+                }
+            }
         }
 
         protected override void Update(GameTime gameTime)
         {
-            if (Keyboard.GetState().IsKeyDown(Keys.Escape))
+            var keyboard = Microsoft.Xna.Framework.Input.Keyboard.GetState();
+            var mouse = Microsoft.Xna.Framework.Input.Mouse.GetState();
+
+            if (keyboard.IsKeyDown(Microsoft.Xna.Framework.Input.Keys.Escape))
                 Exit();
 
-            if (Mouse.GetState().LeftButton == ButtonState.Pressed)
+            if (mouse.LeftButton == Microsoft.Xna.Framework.Input.ButtonState.Pressed)
                 HandleSelection();
 
             base.Update(gameTime);
@@ -123,30 +154,31 @@ namespace EditorOfficial
 
         private void HandleSelection()
         {
-            if (Entities.Count == 0) return;
-            var teapot = Entities[0];
-            if (SelectedEntity != teapot)
+            if (Entities.Count == 0)
+                return;
+
+            var entity = Entities[0];
+            if (SelectedEntity != entity)
             {
-                SelectedEntity = teapot;
-                teapot.Selected = true;
-                OnEntitySelected?.Invoke(teapot);
+                SelectedEntity = entity;
+                entity.Selected = true;
+                OnEntitySelected?.Invoke(entity);
             }
         }
 
         protected override void Draw(GameTime gameTime)
         {
-            // Prevent null reference crash if device isn't ready
             if (GraphicsDevice == null)
                 return;
 
             GraphicsDevice.Clear(new Color(25, 40, 80));
 
-            foreach (var e in Entities)
-                e.Draw(GraphicsDevice, _effect, _camera.View, _camera.Projection);
+            foreach (var entity in Entities)
+            {
+                entity.Draw(GraphicsDevice, _effect, _camera.View, _camera.Projection);
+            }
 
             base.Draw(gameTime);
         }
-
-
     }
 }

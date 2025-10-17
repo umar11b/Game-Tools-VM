@@ -18,15 +18,15 @@
             menuStrip1 = new System.Windows.Forms.MenuStrip();
             fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             newToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            saveToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            loadToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             controlToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             splitContainer1 = new System.Windows.Forms.SplitContainer();
             propertyGrid1 = new System.Windows.Forms.PropertyGrid();
             statusStrip1 = new System.Windows.Forms.StatusStrip();
             toolStripStatusLabel1 = new System.Windows.Forms.ToolStripStatusLabel();
-            toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
-            saveToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
-            loadToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
             splitContainer1.Panel2.SuspendLayout();
@@ -54,8 +54,29 @@
             // 
             newToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { toolStripMenuItem1, saveToolStripMenuItem1, loadToolStripMenuItem1 });
             newToolStripMenuItem.Name = "newToolStripMenuItem";
-            newToolStripMenuItem.Size = new System.Drawing.Size(111, 22);
+            newToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             newToolStripMenuItem.Text = "Project";
+            // 
+            // toolStripMenuItem1
+            // 
+            toolStripMenuItem1.Name = "toolStripMenuItem1";
+            toolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
+            toolStripMenuItem1.Text = "Create";
+            toolStripMenuItem1.Click += menuItemCreate_Click;
+            // 
+            // saveToolStripMenuItem1
+            // 
+            saveToolStripMenuItem1.Name = "saveToolStripMenuItem1";
+            saveToolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
+            saveToolStripMenuItem1.Text = "Save";
+            saveToolStripMenuItem1.Click += menuItemSave_Click;
+            // 
+            // loadToolStripMenuItem1
+            // 
+            loadToolStripMenuItem1.Name = "loadToolStripMenuItem1";
+            loadToolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
+            loadToolStripMenuItem1.Text = "Load";
+            loadToolStripMenuItem1.Click += menuItemLoad_Click;
             // 
             // exitToolStripMenuItem
             // 
@@ -104,25 +125,6 @@
             toolStripStatusLabel1.Name = "toolStripStatusLabel1";
             toolStripStatusLabel1.Size = new System.Drawing.Size(39, 17);
             toolStripStatusLabel1.Text = "Ready";
-            // 
-            // toolStripMenuItem1
-            // 
-            toolStripMenuItem1.Name = "toolStripMenuItem1";
-            toolStripMenuItem1.Size = new System.Drawing.Size(108, 22);
-            toolStripMenuItem1.Text = "Create";
-            toolStripMenuItem1.Click += toolStripMenuItem1_Click;
-            // 
-            // saveToolStripMenuItem1
-            // 
-            saveToolStripMenuItem1.Name = "saveToolStripMenuItem1";
-            saveToolStripMenuItem1.Size = new System.Drawing.Size(108, 22);
-            saveToolStripMenuItem1.Text = "Save";
-            // 
-            // loadToolStripMenuItem1
-            // 
-            loadToolStripMenuItem1.Name = "loadToolStripMenuItem1";
-            loadToolStripMenuItem1.Size = new System.Drawing.Size(108, 22);
-            loadToolStripMenuItem1.Text = "Load";
             // 
             // FormEditor
             // 

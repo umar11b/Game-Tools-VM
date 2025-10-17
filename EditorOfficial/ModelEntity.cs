@@ -9,15 +9,15 @@ namespace EditorOfficial
     {
         private Vector3 _position;
         private Vector3 _rotation;
-        private float _scale = 15f;
+        private float _scale = 1f;
         private bool _selected;
         private string _diffuseTexture = "Metal";
 
         [Browsable(false)]
-        public Model Model { get; private set; }
+        public Model Model { get; set; }
 
         [Category("Appearance")]
-        [Description("Diffuse texture of the model.")]
+        [Description("Diffuse texture")]
         [TypeConverter(typeof(DiffuseTextureConverter))]
         public string DiffuseTexture
         {
@@ -33,7 +33,7 @@ namespace EditorOfficial
         }
 
         [Category("State")]
-        [Description("Selection status.")]
+        [Description("Is this entity selected")]
         public bool Selected
         {
             get => _selected;
@@ -47,8 +47,8 @@ namespace EditorOfficial
             }
         }
 
-        [Category("Transformation")]
-        [Description("Position of the model in world space.")]
+        [Category("Transform")]
+        [Description("World position")]
         public Vector3 Position
         {
             get => _position;
@@ -62,8 +62,8 @@ namespace EditorOfficial
             }
         }
 
-        [Category("Transformation")]
-        [Description("Rotation of the model.")]
+        [Category("Transform")]
+        [Description("Rotation (pitch, yaw, roll)")]
         public Vector3 Rotation
         {
             get => _rotation;
@@ -77,8 +77,8 @@ namespace EditorOfficial
             }
         }
 
-        [Category("Transformation")]
-        [Description("Scale of the model.")]
+        [Category("Transform")]
+        [Description("Scale")]
         public float Scale
         {
             get => _scale;
@@ -103,12 +103,9 @@ namespace EditorOfficial
             Model = model;
         }
 
-        // Simpler overload for default use from GameEditor
-        // Overload for Level.cs usage (4 args: world, view, projection, graphicsDevice)
         public void Draw(GraphicsDevice device, BasicEffect effect, Matrix view, Matrix projection)
         {
-            if (Model == null)
-                return;
+            if (Model == null) return;
 
             foreach (var mesh in Model.Meshes)
             {
@@ -131,19 +128,13 @@ namespace EditorOfficial
             }
         }
 
-
-
-
-
-
         public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string prop)
+        protected void OnPropertyChanged(string name)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
     }
 
-    // Dropdown converter for DiffuseTexture
     public class DiffuseTextureConverter : StringConverter
     {
         public override bool GetStandardValuesSupported(ITypeDescriptorContext context) => true;

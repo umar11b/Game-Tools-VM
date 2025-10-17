@@ -22,7 +22,7 @@ namespace EditorOfficial
             var handle = splitContainer1.Panel1.Handle; // ✅ ensure game renders on left
             _game = new GameEditor(handle);
             _game.Start();  // replaces Initialize() + LoadContent()
-            _game.AddDefaultEntity();
+            //_game.AddDefaultEntity();
             _game.OnEntitySelected += HandleEntitySelected;
 
             Application.Idle += GameLoop;
@@ -189,4 +189,7 @@ namespace EditorOfficial
         public static extern bool PeekMessage(out Message msg, IntPtr hWnd,
             uint messageFilterMin, uint messageFilterMax, uint flags);
     }
+
+    
+
 }
