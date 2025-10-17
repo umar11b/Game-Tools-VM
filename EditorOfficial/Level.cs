@@ -22,11 +22,11 @@ namespace EditorOfficial
             Entities.Add(entity);
         }
 
-        public void LoadContent(ContentManager content)
-        {
-            foreach (var e in Entities)
-                e.LoadContent(content);
-        }
+        //public void LoadContent(ContentManager content)
+        //{
+        //    foreach (var e in Entities)
+        //        e.LoadContent(content);
+        //}
 
         public void Draw(GraphicsDevice device, BasicEffect effect, Matrix view, Matrix projection)
         {

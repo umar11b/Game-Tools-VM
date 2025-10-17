@@ -1,13 +1,16 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Windows.Forms;
-using EditorOfficial.Helpers; // ✅ for InputState
 
 namespace EditorOfficial
 {
     public partial class FormEditor : Form
     {
         private GameEditor _game;
+        private bool _selectionDirty = false;
+        private string _currentProjectPath = null;
 
         public FormEditor()
         {
@@ -16,40 +19,38 @@ namespace EditorOfficial
 
         private void FormEditor_Load(object sender, EventArgs e)
         {
-            toolStripStatusLabel1.Text = "Initializing game engine...";
+            var handle = splitContainer1.Panel1.Handle; // ✅ ensure game renders on left
+            _game = new GameEditor(handle);
+            _game.Start();  // replaces Initialize() + LoadContent()
+            _game.AddDefaultEntity();
+            _game.OnEntitySelected += HandleEntitySelected;
 
-            try
-            {
-                var handle = splitContainer1.Panel2.Handle;
-                _game = new GameEditor(handle);
-                _game.RunOneFrame();
-
-                // ✅ Hook WinForms input events to InputState
-                HookInputEvents();
-
-                // ✅ Run MonoGame frames when the app is idle
-                Application.Idle += GameLoop;
-
-                toolStripStatusLabel1.Text = "Game engine initialized.";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error initializing game: {ex.Message}", "Initialization Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            Application.Idle += GameLoop;
+            toolStripStatusLabel1.Text = "Game engine initialized.";
         }
 
-        // ✅ Handles resizing of the embedded render surface
-        private void FormEditor_SizeChanged(object sender, EventArgs e)
-        {
-            _game?.UpdateAspectRatio(splitContainer1.Panel2.Width, splitContainer1.Panel2.Height);
-        }
-
-        // ✅ Main MonoGame frame loop
         private void GameLoop(object sender, EventArgs e)
         {
             while (AppStillIdle)
+            {
                 _game.Tick();
+
+                // ✅ defensive check ensures propertyGrid1 exists at runtime
+                if (_selectionDirty && this.propertyGrid1 != null)
+                {
+                    this.propertyGrid1.Refresh();
+                    _selectionDirty = false;
+                }
+            }
+        }
+
+        private void HandleEntitySelected(ModelEntity entity)
+        {
+            if (this.propertyGrid1 != null)
+            {
+                this.propertyGrid1.SelectedObject = entity;
+                entity.PropertyChanged += (s, ev) => _selectionDirty = true;
+            }
         }
 
         private bool AppStillIdle
@@ -61,71 +62,119 @@ namespace EditorOfficial
             }
         }
 
-        protected override void OnFormClosing(FormClosingEventArgs e)
+        private void FormEditor_SizeChanged(object sender, EventArgs e)
         {
-            _game?.Exit();
-            base.OnFormClosing(e);
+            // Optional resize handling
         }
 
-        // === Menu actions ===
-        private void createToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            _game?.ResetScene();
-            toolStripStatusLabel1.Text = "New scene created.";
-        }
+        // 🧱 ---------- MENU ITEM HANDLERS ----------
 
-        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
+        // "File > Project > Create"
+        private void menuItemCreate_Click(object sender, EventArgs e)
         {
-            using var dialog = new SaveFileDialog
+            using (SaveFileDialog dlg = new SaveFileDialog())
             {
-                Filter = "Scene Files (*.json)|*.json",
-                FileName = "scene.json"
-            };
-            if (dialog.ShowDialog() == DialogResult.OK)
-            {
-                _game?.SaveScene(dialog.FileName);
-                toolStripStatusLabel1.Text = $"Scene saved: {Path.GetFileName(dialog.FileName)}";
+                dlg.Filter = "Open City Editor Project (*.oce)|*.oce";
+                dlg.Title = "Create New Project";
+
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    _currentProjectPath = dlg.FileName;
+
+                    // Create new empty Level
+                    _game.Level = new Level("Untitled");
+                    SaveProject(_currentProjectPath);
+
+                    toolStripStatusLabel1.Text = $"Created new project: {_currentProjectPath}";
+                    this.Text = $"Editor - {Path.GetFileName(_currentProjectPath)}";
+                }
             }
         }
 
-        private void loadToolStripMenuItem_Click(object sender, EventArgs e)
+        // "File > Project > Load"
+        private void menuItemLoad_Click(object sender, EventArgs e)
         {
-            using var dialog = new OpenFileDialog
+            using (OpenFileDialog dlg = new OpenFileDialog())
             {
-                Filter = "Scene Files (*.json)|*.json"
-            };
-            if (dialog.ShowDialog() == DialogResult.OK)
-            {
-                _game?.LoadScene(dialog.FileName);
-                toolStripStatusLabel1.Text = $"Loaded: {Path.GetFileName(dialog.FileName)}";
+                dlg.Filter = "Open City Editor Project (*.oce)|*.oce";
+                dlg.Title = "Open Project";
+
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    _currentProjectPath = dlg.FileName;
+                    LoadProject(_currentProjectPath);
+
+                    toolStripStatusLabel1.Text = $"Loaded project: {_currentProjectPath}";
+                    this.Text = $"Editor - {Path.GetFileName(_currentProjectPath)}";
+                }
             }
         }
 
-        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+        // "File > Project > Save"
+        private void menuItemSave_Click(object sender, EventArgs e)
         {
-            Close();
+            if (string.IsNullOrEmpty(_currentProjectPath))
+            {
+                using (SaveFileDialog dlg = new SaveFileDialog())
+                {
+                    dlg.Filter = "Open City Editor Project (*.oce)|*.oce";
+                    dlg.Title = "Save Project As";
+
+                    if (dlg.ShowDialog() == DialogResult.OK)
+                        _currentProjectPath = dlg.FileName;
+                    else
+                        return;
+                }
+            }
+
+            SaveProject(_currentProjectPath);
+            toolStripStatusLabel1.Text = $"Project saved: {_currentProjectPath}";
         }
 
-        // ✅ New: hook up WinForms input events to InputState helper
-        private void HookInputEvents()
+        // 🧠 ---------- FILE I/O HELPERS ----------
+
+        private void SaveProject(string path)
         {
-            var panel = splitContainer1.Panel2;
+            if (_game?.Level == null)
+                return;
 
-            panel.MouseDown += (s, e) => InputState.OnMouseDown(e);
-            panel.MouseUp += (s, e) => InputState.OnMouseUp(e);
-            panel.MouseMove += (s, e) => InputState.OnMouseMove(e);
-            panel.KeyDown += (s, e) => InputState.OnKeyDown(e.KeyCode);
-            panel.KeyUp += (s, e) => InputState.OnKeyUp(e.KeyCode);
-
-            // ✅ Let panel capture focus for keyboard
-            panel.TabStop = true;
-            panel.Focus();
+            try
+            {
+                var json = JsonSerializer.Serialize(_game.Level, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(path, json);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to save project:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
+
+        private void LoadProject(string path)
+        {
+            try
+            {
+                var json = File.ReadAllText(path);
+                var loadedLevel = JsonSerializer.Deserialize<Level>(json);
+
+                if (loadedLevel != null)
+                {
+                    _game.Level = loadedLevel;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load project:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Dummy for unhandled menu item
+        private void toolStripMenuItem1_Click(object sender, EventArgs e) { }
     }
 
+    // ✅ Win32 helper
     internal static class NativeMethods
     {
-        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Sequential)]
         public struct Message
         {
             public IntPtr hWnd;
@@ -136,8 +185,8 @@ namespace EditorOfficial
             public System.Drawing.Point p;
         }
 
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        public static extern bool PeekMessage(out Message msg, IntPtr hWnd, uint messageFilterMin,
-            uint messageFilterMax, uint flags);
+        [DllImport("user32.dll")]
+        public static extern bool PeekMessage(out Message msg, IntPtr hWnd,
+            uint messageFilterMin, uint messageFilterMax, uint flags);
     }
 }

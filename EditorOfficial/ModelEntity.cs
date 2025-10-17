@@ -1,75 +1,157 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Content;
-using System.Text.Json.Serialization;
+using System;
+using System.ComponentModel;
 
 namespace EditorOfficial
 {
-    [Serializable]
-    public class ModelEntity
+    public class ModelEntity : INotifyPropertyChanged
     {
-        // === Serializable fields ===
-        public string ModelName { get; set; }
-        public Vector3 Position { get; set; } = Vector3.Zero;
-        public Vector3 Rotation { get; set; } = Vector3.Zero;
-        public Vector3 Scale { get; set; } = Vector3.One;
+        private Vector3 _position;
+        private Vector3 _rotation;
+        private float _scale = 15f;
+        private bool _selected;
+        private string _diffuseTexture = "Metal";
 
-        // === Non-serialized runtime model ===
-        [JsonIgnore]
-        private Model _model;
+        [Browsable(false)]
+        public Model Model { get; private set; }
 
-        public ModelEntity() { }
-
-        public ModelEntity(string modelName)
+        [Category("Appearance")]
+        [Description("Diffuse texture of the model.")]
+        [TypeConverter(typeof(DiffuseTextureConverter))]
+        public string DiffuseTexture
         {
-            ModelName = modelName;
-        }
-
-        // === Load 3D content ===
-        public void LoadContent(ContentManager content)
-        {
-            try
+            get => _diffuseTexture;
+            set
             {
-                _model = content.Load<Model>(ModelName);
-            }
-            catch (Exception ex)
-            {
-                System.Windows.Forms.MessageBox.Show(
-                    $"Failed to load model '{ModelName}':\n{ex.Message}",
-                    "Model Load Error",
-                    System.Windows.Forms.MessageBoxButtons.OK,
-                    System.Windows.Forms.MessageBoxIcon.Warning
-                );
+                if (_diffuseTexture != value)
+                {
+                    _diffuseTexture = value;
+                    OnPropertyChanged(nameof(DiffuseTexture));
+                }
             }
         }
 
-        // === Draw model ===
+        [Category("State")]
+        [Description("Selection status.")]
+        public bool Selected
+        {
+            get => _selected;
+            set
+            {
+                if (_selected != value)
+                {
+                    _selected = value;
+                    OnPropertyChanged(nameof(Selected));
+                }
+            }
+        }
+
+        [Category("Transformation")]
+        [Description("Position of the model in world space.")]
+        public Vector3 Position
+        {
+            get => _position;
+            set
+            {
+                if (_position != value)
+                {
+                    _position = value;
+                    OnPropertyChanged(nameof(Position));
+                }
+            }
+        }
+
+        [Category("Transformation")]
+        [Description("Rotation of the model.")]
+        public Vector3 Rotation
+        {
+            get => _rotation;
+            set
+            {
+                if (_rotation != value)
+                {
+                    _rotation = value;
+                    OnPropertyChanged(nameof(Rotation));
+                }
+            }
+        }
+
+        [Category("Transformation")]
+        [Description("Scale of the model.")]
+        public float Scale
+        {
+            get => _scale;
+            set
+            {
+                if (_scale != value)
+                {
+                    _scale = value;
+                    OnPropertyChanged(nameof(Scale));
+                }
+            }
+        }
+
+        [Browsable(false)]
+        public Matrix World =>
+            Matrix.CreateScale(_scale) *
+            Matrix.CreateFromYawPitchRoll(_rotation.Y, _rotation.X, _rotation.Z) *
+            Matrix.CreateTranslation(_position);
+
+        public ModelEntity(Model model)
+        {
+            Model = model;
+        }
+
+        // Simpler overload for default use from GameEditor
+        // Overload for Level.cs usage (4 args: world, view, projection, graphicsDevice)
         public void Draw(GraphicsDevice device, BasicEffect effect, Matrix view, Matrix projection)
         {
-            if (_model == null)
+            if (Model == null)
                 return;
 
-            Matrix world =
-                Matrix.CreateScale(Scale) *
-                Matrix.CreateFromYawPitchRoll(Rotation.Y, Rotation.X, Rotation.Z) *
-                Matrix.CreateTranslation(Position);
-
-            foreach (var mesh in _model.Meshes)
+            foreach (var mesh in Model.Meshes)
             {
-                foreach (BasicEffect meshEffect in mesh.Effects)
+                foreach (BasicEffect e in mesh.Effects)
                 {
-                    meshEffect.World = world;
-                    meshEffect.View = view;
-                    meshEffect.Projection = projection;
-                    meshEffect.EnableDefaultLighting();
+                    e.World = World;
+                    e.View = view;
+                    e.Projection = projection;
+                    e.EnableDefaultLighting();
+
+                    if (DiffuseTexture == "Metal")
+                        e.DiffuseColor = new Vector3(0.8f, 0.8f, 0.8f);
+                    else if (DiffuseTexture == "Grass")
+                        e.DiffuseColor = new Vector3(0.3f, 0.8f, 0.3f);
+                    else if (DiffuseTexture == "HeightMap")
+                        e.DiffuseColor = new Vector3(0.5f, 0.5f, 1.0f);
                 }
+
                 mesh.Draw();
             }
+        }
+
+
+
+
+
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string prop)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+        }
+    }
+
+    // Dropdown converter for DiffuseTexture
+    public class DiffuseTextureConverter : StringConverter
+    {
+        public override bool GetStandardValuesSupported(ITypeDescriptorContext context) => true;
+        public override bool GetStandardValuesExclusive(ITypeDescriptorContext context) => true;
+
+        public override StandardValuesCollection GetStandardValues(ITypeDescriptorContext context)
+        {
+            return new StandardValuesCollection(new[] { "Metal", "Grass", "HeightMap" });
         }
     }
 }
